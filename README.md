@@ -10,7 +10,7 @@ Validated source: [`e88b44c9d2a6`](https://github.com/justdan6/hhvm/commit/e88b4
 | --- | --- | --- |
 | Linux x86-64 / AMD64 | Working | Interpreter, JIT, and all 861 quick tests; built under Docker Desktop x86 translation |
 | Linux ARM64 / AArch64 | Working | Interpreter, JIT, and all 861 quick tests |
-| Native macOS ARM64 / Apple Silicon | Experimental, smoke-tested | Built on Apple Silicon/macOS 27.2; interpreter and JIT smoke tests pass; Homebrew libraries are required |
+| Native macOS ARM64 / Apple Silicon | Experimental, smoke-tested | Interpreter and JIT smoke tests pass; the quick suite aborts before completion; Homebrew libraries are required |
 
 Linux ELF executables run on Linux. Docker Desktop can run the Linux images on a Mac. The native macOS Mach-O build is experimental and is not included in automated releases.
 
