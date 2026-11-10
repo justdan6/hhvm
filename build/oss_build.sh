@@ -19,11 +19,7 @@ if [ "$HOST_OS" != "Linux" ]; then
   exit 1
 fi
 
-JOBS="${HHVM_OSS_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
-if ! [[ "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
-  echo "ERROR: HHVM_OSS_BUILD_JOBS must be a positive integer." >&2
-  exit 1
-fi
+JOBS="$(nproc 2>/dev/null || echo 4)"
 BUILD_DIR="${HHVM_OSS_BUILD_DIR:-$HHVM_OSS_WORK_ROOT/hhvm}"
 HHVM_CMAKE_BUILD_TYPE="${HHVM_OSS_CMAKE_BUILD_TYPE:-Release}"
 HHVM_BUILD_TARGET="${HHVM_OSS_BUILD_TARGET:-hhvm}"
@@ -110,18 +106,17 @@ IMAGEMAGICK6_INCLUDE_DIRS="$IMAGEMAGICK6_PREFIX/include/ImageMagick-6;$IMAGEMAGI
 IMAGEMAGICK6_WAND_LIBRARY="$IMAGEMAGICK6_PREFIX/lib/libMagickWand-6.Q16.so"
 IMAGEMAGICK6_CORE_LIBRARY="$IMAGEMAGICK6_PREFIX/lib/libMagickCore-6.Q16.so"
 IMAGEMAGICK6_FORMATS_STAMP="$IMAGEMAGICK6_PREFIX/.hhvm-jpeg-png-formats-no-openmp"
-OPAM_REPOSITORY_REVISION="50e5bad7b3a9f9400cd3629a6dde7338da3ee14c"
+OPAM_REPOSITORY_REVISION="588f3130c1513932f63440010a91796ce12d54fa"
 OPAM_REPOSITORY_URL="https://github.com/ocaml/opam-repository/archive/${OPAM_REPOSITORY_REVISION}.tar.gz"
 OPAM_REPOSITORY_ARCHIVE="opam-repository-${OPAM_REPOSITORY_REVISION}.tar.gz"
-OPAM_REPOSITORY_SHA256="3c75894e783c11d7d1189d9bae907afbe583e5cb4d17e2adb0b8b875950216f0"
-OPAM_REPOSITORY_SRC_DIR="$HHVM_OSS_WORK_ROOT/sources/opam-repository-$OPAM_REPOSITORY_REVISION"
+OPAM_REPOSITORY_SHA256="7221dd867475707a9e0f423dde137821863dfe6c84b86c3ba802927d74e05787"
+OPAM_REPOSITORY_SRC_DIR="$HHVM_OSS_WORK_ROOT/sources/opam-repository"
 export HHVM_OSS_OPAM_REPOSITORY="$OPAM_REPOSITORY_SRC_DIR"
 JEMALLOC_VERSION="5.3.0"
 JEMALLOC_ARCHIVE="jemalloc-${JEMALLOC_VERSION}.tar.bz2"
 JEMALLOC_URL="https://github.com/jemalloc/jemalloc/releases/download/${JEMALLOC_VERSION}/${JEMALLOC_ARCHIVE}"
 JEMALLOC_SHA256="2db82d1e7119df3e71b7640219b6dfe84789bc0537983c3b7ac4f7189aecfeaa"
-# Match the toolchain in the pinned public ocamlrep dependency.
-RUST_NIGHTLY="2026-08-15"
+RUST_NIGHTLY="2025-05-04"
 FBMYSQL_OSS_ROCKSDB_SRC=""
 CMAKE_C_COMPILER_PATH="${HHVM_OSS_C_COMPILER:-}"
 CMAKE_CXX_COMPILER_PATH="${HHVM_OSS_CXX_COMPILER:-}"
@@ -154,12 +149,12 @@ case "$(uname -m)" in
     HHVM_CMAKE_ARCHITECTURE="IS_X64"
     NEED_XED=true
     RUST_TARGET="x86_64-unknown-linux-gnu"
-    RUST_SHA256="610be08dc530b33433e94e6639eaf73f4a5ea87f57901b607e22556b515cb365"
+    RUST_SHA256="a2edc6497cc5bef5d19f75fb16792f36e5972cf8a0d1af765613041921050821"
     ;;
   aarch64|arm64)
     HHVM_CMAKE_ARCHITECTURE="IS_AARCH64"
     RUST_TARGET="aarch64-unknown-linux-gnu"
-    RUST_SHA256="6748150362383e060d026eeb9d7d5ef0dd037d6c403249331d0c6bd7dff01ecb"
+    RUST_SHA256="a76786cd5ebff9c61579c711a60d0a8af55b07204c0eff3065f2555d11bcde75"
     ;;
   *)
     echo "ERROR: Unsupported architecture: $(uname -m)"
@@ -212,7 +207,6 @@ Directories:
   HHVM build targets: ${HHVM_BUILD_TARGETS[*]}
 
 Environment overrides:
-  HHVM_OSS_BUILD_JOBS
   HHVM_OSS_WORK_ROOT
   HHVM_OSS_BUILD_DIR
   HHVM_OSS_SCRATCH_DIR
@@ -1236,42 +1230,6 @@ find_public_fbcode_builder_cmake() {
   return 1
 }
 
-configure_mcrouter_getdeps_manifest() {
-  local manifest="$GETDEPS_SHADOW_MANIFESTS_DIR/mcrouter"
-
-  # --extra-cmake-defines applies to every dependency and participates in
-  # every getdeps cache key. Keep mcrouter-only search paths in its manifest
-  # so that it reuses the dependency stack built with the common toolchain.
-  python3 - "$manifest" "$1" "$2" "$3" <<'PY'
-from pathlib import Path
-import sys
-
-manifest = Path(sys.argv[1])
-updates = dict(zip(
-    ("CMAKE_MODULE_PATH", "BOOST_ROOT", "Boost_ROOT", "Boost_DIR", "Boost_NO_SYSTEM_PATHS"),
-    (sys.argv[2], sys.argv[3], sys.argv[3], sys.argv[4], "ON"),
-))
-output = []
-in_defines = False
-found = False
-for line in manifest.read_text().splitlines():
-    stripped = line.strip()
-    if stripped.startswith("[") and stripped.endswith("]"):
-        in_defines = stripped == "[cmake.defines]"
-        output.append(line)
-        if in_defines:
-            found = True
-            output.extend(f"{key}={value}" for key, value in updates.items())
-        continue
-    if in_defines and stripped.partition("=")[0].strip() in updates:
-        continue
-    output.append(line)
-if not found:
-    raise SystemExit(f"Missing [cmake.defines] in {manifest}")
-manifest.write_text("\n".join(output) + "\n")
-PY
-}
-
 require_install_prefix() {
   local name="$1" prefix="$2"
 
@@ -1530,10 +1488,23 @@ else
           echo "ERROR: BoostConfig.cmake was not found under $BOOST_INSTALL"
           exit 1
         fi
-        configure_mcrouter_getdeps_manifest \
+        dep_cmake_defines="$(python3 - \
+          "$dep_cmake_defines" \
           "$MCROUTER_FBCODE_BUILDER_CMAKE" \
           "$BOOST_INSTALL" \
-          "$MCROUTER_BOOST_CMAKE_DIR"
+          "$MCROUTER_BOOST_CMAKE_DIR" <<'PY'
+import json
+import sys
+
+defines = json.loads(sys.argv[1])
+defines["CMAKE_MODULE_PATH"] = sys.argv[2]
+defines["BOOST_ROOT"] = sys.argv[3]
+defines["Boost_ROOT"] = sys.argv[3]
+defines["Boost_DIR"] = sys.argv[4]
+defines["Boost_NO_SYSTEM_PATHS"] = "ON"
+print(json.dumps(defines, separators=(",", ":")))
+PY
+)"
         ;;
     esac
 
@@ -1809,7 +1780,7 @@ fi
 # Phase 7: Prepare Rust toolchain and crate cache
 # ---------------------------------------------------------------------------
 # Install rust nightly to a persistent location (not inside build dir)
-RUST_PREFIX="$HHVM_OSS_WORK_ROOT/installed/rust-nightly-$RUST_NIGHTLY"
+RUST_PREFIX="$HHVM_OSS_WORK_ROOT/installed/rust-nightly"
 if [ -x "$RUST_PREFIX/bin/rustc" ]; then
   echo ">>> Rust nightly already installed. Skipping."
 else
@@ -1858,7 +1829,7 @@ else
     (
       cd "$rust_source"
       PATH="$RUST_PREFIX/bin:$PATH" \
-        "$RUST_PREFIX/bin/cargo" fetch --locked --quiet
+        "$RUST_PREFIX/bin/cargo" fetch --quiet
     )
   done
   printf '%s\n' "$RUST_FETCH_FINGERPRINT" > "$RUST_FETCH_STAMP"

@@ -1,6 +1,10 @@
 ---
-name: Legacy OSS compiler matrix (manual)
+name: OSS build and tests
 on:
+  pull_request:
+  push:
+    branches:
+      - master
   workflow_dispatch:
 
 permissions:
@@ -31,6 +35,8 @@ jobs:
             packages: gcc-15 g++-15
             lld: ""
     env:
+      HHVM_OSS_WORK_ROOT: ${{ runner.temp }}/hhvm-oss
+      HHVM_BIN: ${{ runner.temp }}/hhvm-oss/hhvm/hphp/hhvm/hhvm
       HHVM_OSS_BUILD_TOOLS: true
       HHVM_OSS_CMAKE_BUILD_TYPE: DebugOpt
       HHVM_OSS_C_COMPILER: ${{ matrix.compiler.cc }}
@@ -40,10 +46,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Verify native architecture
         run: test "$(uname -m)" = "${{ matrix.architecture.name }}"
-      - name: Set build paths
-        run: |
-          printf '%s\n' "HHVM_OSS_WORK_ROOT=$RUNNER_TEMP/hhvm-oss" \
-            "HHVM_BIN=$RUNNER_TEMP/hhvm-oss/hhvm/hphp/hhvm/hhvm" >> "$GITHUB_ENV"
       - name: Install and verify compiler
         run: |
           sudo apt-get update

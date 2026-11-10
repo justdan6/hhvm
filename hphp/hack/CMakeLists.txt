@@ -142,13 +142,6 @@ else()
   set(HHVM_RUST_FFI_PROFILE_ARGS --release)
 endif()
 file(MAKE_DIRECTORY "${HHVM_RUST_FFI_WORKSPACE_DIR}")
-# Seed the generated workspace with the source lockfile so its git
-# dependencies use the same revisions as the rest of Hack.
-configure_file(
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/Cargo.lock"
-  "${HHVM_RUST_FFI_WORKSPACE_DIR}/Cargo.lock"
-  COPYONLY
-)
 
 string(CONCAT HHVM_RUST_FFI_CARGO_TOML_CONTENT
   "[package]\n"
