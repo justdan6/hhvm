@@ -10,6 +10,8 @@ hphp.log
 hphp/hack/_build/
 hphp/hack/cargo_home/
 /deps
+/dist/
+/.hhvm-build/
 
 /hphp/test/test
 /hphp/test/test_fast.inc
