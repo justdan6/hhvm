@@ -1,6 +1,6 @@
 # Publish HHVM Docker images and GitHub binary releases
 
-This workflow is prepared for `justdan6/hhvm`. It has not been run on GitHub or published by the local build investigation. It builds and releases Linux x86-64 and ARM64. Native macOS passes interpreter/JIT smoke tests, but its 861-test quick suite was attempted and aborted before completion; a clean-machine build has not been validated, and the binary depends on Homebrew dylibs. It is not part of automated publishing.
+This workflow is prepared for `justdan6/hhvm`. It has not been run on GitHub or published by the local build investigation. It builds and releases Linux x86-64 and ARM64. Native macOS now passes interpreter/JIT smoke tests, but remains experimental: the full quick suite and a clean-machine build have not been validated, and the binary depends on Homebrew dylibs. It is not part of automated publishing.
 
 ## One-time setup
 
@@ -78,7 +78,7 @@ The push starts the tested release pipeline. When upstream changes its Rust, OCa
 
 ### Experimental native macOS asset
 
-The delivered `hhvm-macos-arm64` executable was built on Apple Silicon from the `e88b44c9d2a6` source plus [`build/macos/experimental-port.patch`](../build/macos/experimental-port.patch). It passes interpreter and JIT smoke tests. The full quick suite aborts before completion; it links to Homebrew dylibs and should only be uploaded with release notes listing that dependency requirement.
+The delivered `hhvm-macos-arm64` executable was built on Apple Silicon from the `e88b44c9d2a6` source plus [`build/macos/experimental-port.patch`](../build/macos/experimental-port.patch). It passes the interpreter and JIT smoke program but has not passed the full quick suite. It links to Homebrew dylibs and should only be uploaded with release notes listing that dependency requirement.
 
 To attach this local build to a matching GitHub release, run this from the delivered `outputs/` directory after reviewing the artifact and checksum:
 
